@@ -1,6 +1,7 @@
 import { FlowAnimationEngine } from './flow-animation.js';
 
 const svg = document.querySelector('#eta-diagram');
+const backButton = document.querySelector('#back-btn');
 const advanceButton = document.querySelector('#advance-btn');
 const viewport = document.querySelector('#diagram-viewport');
 const statusNode = document.querySelector('#sim-status');
@@ -8,13 +9,28 @@ const currentStageNode = document.querySelector('#current-stage');
 
 const engine = new FlowAnimationEngine({
   svg,
+  backButton,
   advanceButton,
   statusNode,
   currentStageNode
 });
 
 engine.init();
+backButton.addEventListener('click', () => engine.goToPreviousStage());
 advanceButton.addEventListener('click', () => engine.advanceSimulation());
+
+document.addEventListener('keydown', (event) => {
+  const target = event.target;
+  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable) return;
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault();
+    engine.goToPreviousStage();
+  }
+  if (event.key === 'ArrowRight') {
+    event.preventDefault();
+    engine.advanceSimulation();
+  }
+});
 
 let zoomLevel = 1;
 let panX = 0;

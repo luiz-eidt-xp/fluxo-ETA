@@ -82,13 +82,14 @@ A interface foi reduzida ao essencial:
 
 - diagrama completo como protagonista;
 - indicador discreto de etapa e status;
-- botão `AVANÇAR` para controlar a progressão;
+- botões `VOLTAR` e `AVANÇAR` para controlar a progressão;
+- navegação por `ArrowLeft` e `ArrowRight`;
 - animação visual contínua dentro de cada etapa;
 - destaque dos equipamentos e das tubulações ativas;
 - zoom por gesto de roda ou trackpad;
 - pan por arraste.
 
-O usuário controla o ritmo da apresentação. A aplicação não avança automaticamente entre etapas.
+O usuário controla o ritmo da apresentação. A aplicação não avança automaticamente entre etapas. Durante uma animação, os comandos ficam protegidos contra transições simultâneas.
 
 ## Decisões técnicas
 
@@ -109,7 +110,7 @@ A execução utiliza estados explícitos:
 - `WAITING`
 - `COMPLETED`
 
-A progressão é autorizada por uma única ação: `advanceSimulation()`.
+A progressão utiliza `advanceSimulation()` e o retorno utiliza `goToPreviousStage()`. Os botões e as teclas de direção chamam essas mesmas funções.
 
 ### Animação com `requestAnimationFrame`
 

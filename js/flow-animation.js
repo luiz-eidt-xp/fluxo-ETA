@@ -3,8 +3,9 @@ import { processAreas, processNodes, processConnections, simulationStages, valid
 const svgNamespace = 'http://www.w3.org/2000/svg';
 
 export class FlowAnimationEngine {
-  constructor({ svg, advanceButton, statusNode, currentStageNode }) {
+  constructor({ svg, backButton, advanceButton, statusNode, currentStageNode }) {
     this.svg = svg;
+    this.backButton = backButton;
     this.advanceButton = advanceButton;
     this.statusNode = statusNode;
     this.currentStageNode = currentStageNode;
@@ -121,10 +122,26 @@ export class FlowAnimationEngine {
   updateControls() {
     const isCompleted = this.state === 'COMPLETED';
     const isRunning = this.state === 'RUNNING';
+    this.backButton.disabled = isRunning || this.stageIndex === 0;
     this.advanceButton.disabled = isRunning;
     this.advanceButton.textContent = isCompleted ? 'REINICIAR' : 'AVANÇAR';
     this.advanceButton.setAttribute('aria-label', isCompleted ? 'Reiniciar simulação' : 'Avançar para a próxima etapa');
+    this.backButton.setAttribute('aria-label', 'Voltar para a etapa anterior');
     this.statusNode.dataset.state = this.state.toLowerCase();
+  }
+
+  goToPreviousStage() {
+    if (this.state === 'RUNNING' || this.stageIndex === 0) return;
+
+    this.stageIndex -= 1;
+    this.stageElapsed = this.currentStage().duration;
+    this.lastTimestamp = null;
+    this.state = 'WAITING';
+    this.setStatus('AGUARDANDO AVANÇAR');
+    this.clearPackets();
+    this.syncVisualState();
+    this.updateControls();
+    this.ensureFrame();
   }
 
   advanceSimulation() {
