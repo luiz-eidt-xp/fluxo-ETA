@@ -8,21 +8,26 @@
       name="description"
       content="Simulação visual interativa do processo da ETA Industrial da JBS em Dourados-MS."
     />
+    <meta name="color-scheme" content="dark" />
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
     <div class="app-shell">
       <header class="topbar">
         <div class="title-block">
-          <h1>ETA Industrial JBS – Dourados-MS</h1>
+          <h1>
+            <span class="title-name">ETA Industrial</span>
+            <span class="title-site">JBS – Dourados-MS</span>
+          </h1>
+          <p class="title-sub">Fluxo do processo de tratamento de água</p>
         </div>
       </header>
 
       <main class="workspace">
         <section class="diagram-panel">
           <div class="toolbar" aria-label="Controles da simulação">
-            <button id="back-btn" class="advance-button">← VOLTAR</button>
-            <button id="advance-btn" class="advance-button">AVANÇAR</button>
+            <button id="back-btn" class="advance-button btn-secondary">← VOLTAR</button>
+            <button id="advance-btn" class="advance-button btn-primary">AVANÇAR</button>
             <div class="stage-display" aria-live="polite">
               <strong id="sim-status">PRONTO</strong>
               <span id="current-stage">Entrada: Córrego e ETE/Reuso</span>

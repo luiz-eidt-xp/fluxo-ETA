@@ -1,42 +1,84 @@
+/* ==========================================================================
+   ETA Industrial JBS – Dourados-MS
+   Sistema visual: painel técnico de processo (estilo P&ID / supervisório).
+
+   Regras do sistema
+   - Cor carrega significado, não decoração:
+       verde-água  → água em processo
+       âmbar       → produtos químicos e atenção do operador (aguardando, foco)
+       ferrugem    → rejeito
+       aço/cinza   → equipamento e tubulação parados
+   - Sem gradientes. Profundidade vem de camadas sólidas + bordas de 1px.
+   - Movimento só quando algo muda de estado (etapa avança, botão é pressionado).
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Tokens
+   -------------------------------------------------------------------------- */
 :root {
-  --bg: #090d12;
-  --bg-elevated: rgba(15, 24, 29, 0.92);
-  --panel: rgba(13, 21, 27, 0.92);
-  --panel-border: rgba(122, 200, 210, 0.4);
-  --line: #80d9e8;
-  --line-soft: rgba(128, 217, 232, 0.5);
-  --teal: #1e4d56;
-  --teal-strong: #2d6d76;
-  --cyan: #73e7ff;
-  --text: #edf8fb;
-  --muted: #b4d6de;
-  --shadow: rgba(0, 0, 0, 0.26);
-  --success: #7ae7bc;
-  --warning: #ffd166;
-  --raw: #93e1ff;
-  --coag: #ffd166;
-  --floc: #7bc3ff;
-  --clarified: #7fe8d9;
-  --filtered: #7cc8ff;
-  --treated: #8fe4a7;
-  --permeate: #90f0ff;
-  --reject: #ff9d72;
+  /* Base: toda a paleta da interface deriva destes oito valores. */
+  --color-bg: #111517;               /* folha de desenho, recuada */
+  --color-surface: #171c1f;          /* barras e zonas */
+  --color-surface-elevated: #1f2528; /* equipamento parado */
+  --color-water: #3cbfb2;            /* água em processo */
+  --color-accent: #e3a72f;           /* químicos / atenção do operador */
+  --color-text: #e8eeee;
+  --color-text-muted: #93a2a6;
+  --color-border: #2f393e;
+
+  /* Semânticos extras (não são "tema": têm função no processo). */
+  --color-reject: #d0683b;           /* rejeito da osmose */
+
+  /* Derivados */
+  --color-border-strong: color-mix(in srgb, var(--color-text-muted) 40%, var(--color-border));
+  --color-steel: color-mix(in srgb, var(--color-text-muted) 58%, var(--color-bg));
+  --color-water-bright: color-mix(in srgb, var(--color-water) 62%, white);
+  --color-water-dim: color-mix(in srgb, var(--color-water) 52%, var(--color-bg));
+  --color-accent-dim: color-mix(in srgb, var(--color-accent) 52%, var(--color-bg));
+  --color-reject-dim: color-mix(in srgb, var(--color-reject) 52%, var(--color-bg));
+  --color-label-idle: color-mix(in srgb, var(--color-text) 76%, var(--color-bg));
+
+  /* Estado da água → preenchimento do equipamento ativo.
+     Do turvo (bruta) ao claro (desinfetada); todos escuros o bastante
+     para manter o texto do rótulo acima de 7:1. */
+  --state-raw: #383a2b;
+  --state-coagulating: #4e4322;
+  --state-flocculating: #3a4732;
+  --state-clarified: #24463e;
+  --state-filtered: #1d5152;
+  --state-treated: #1c5b55;
+  --state-ro_feed: #1f5677;
+  --state-ro_permeate: #2a6d85;
+  --state-disinfected: #1e5f49;
+
+  /* Tipografia: família DIN (Bahnschrift no Windows, DIN Alternate no macOS),
+     o padrão histórico de sinalização e desenho técnico. Sem download. */
+  --font-ui: "Bahnschrift", "DIN Alternate", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+
+  /* Movimento */
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --t-fast: 140ms;
+  --t-base: 280ms;
+
+  --radius: 4px;
 }
 
+/* --------------------------------------------------------------------------
+   2. Base
+   -------------------------------------------------------------------------- */
 * {
   box-sizing: border-box;
 }
 
-html, body {
-  margin: 0;
-  min-height: 100%;
-  background: radial-gradient(circle at top, rgba(26, 64, 72, 0.35), transparent 24%), var(--bg);
-  color: var(--text);
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-}
-
+html,
 body {
-  min-height: 100vh;
+  margin: 0;
+  height: 100%;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
 }
 
 button {
@@ -47,110 +89,247 @@ button {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding: 10px 12px 10px;
+  height: 100dvh;
 }
 
+/* --------------------------------------------------------------------------
+   3. Cabeçalho
+   Nome do sistema em destaque; unidade em peso leve, separada por filete;
+   subtítulo como linha de apoio. Um único nível de ênfase por elemento.
+   -------------------------------------------------------------------------- */
 .topbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
-  padding: 8px 12px 12px;
-  border-bottom: 1px solid rgba(128, 217, 232, 0.18);
+  padding: 14px 20px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.title-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 24px;
+  min-width: 0;
 }
 
 .title-block h1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 14px;
   margin: 0;
-  font-size: clamp(1.05rem, 1.5vw, 1.55rem);
-  letter-spacing: 0.03em;
+  line-height: 1.1;
 }
 
+.title-name {
+  font-size: clamp(1.4rem, 2.3vw, 2rem);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--color-text);
+}
+
+.title-site {
+  padding-left: 14px;
+  border-left: 1px solid var(--color-border-strong);
+  font-size: clamp(0.95rem, 1.35vw, 1.2rem);
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.title-sub {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   4. Área de trabalho: barra de controle + folha de desenho num só painel
+   -------------------------------------------------------------------------- */
 .workspace {
   display: flex;
   flex: 1;
   min-height: 0;
-  padding-top: 8px;
+  padding: 12px 16px 16px;
 }
 
 .diagram-panel {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  min-width: 0;
   width: 100%;
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
 .toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 10px;
-  border-radius: 14px;
-  border: 1px solid var(--panel-border);
-  background: rgba(12, 20, 24, 0.95);
+  gap: 8px;
+  padding: 10px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
 }
 
+/* --------------------------------------------------------------------------
+   5. Botões
+   Primário (AVANÇAR) preenchido; secundário (VOLTAR) só contorno.
+   Desabilitado = superfície cinza, sem contorno de destaque: dá para ver
+   que o sistema está ocupado (etapa em execução).
+   -------------------------------------------------------------------------- */
 .advance-button {
-  min-width: 140px;
-  padding: 10px 22px;
-  background: linear-gradient(180deg, rgba(33, 110, 120, 0.96), rgba(21, 75, 84, 0.96));
+  min-width: 128px;
+  min-height: 40px;
+  padding: 0 20px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.08em;
-}
-
-.advance-button:disabled {
-  cursor: wait;
-  opacity: 0.55;
-}
-
-button {
-  border: 1px solid rgba(128, 217, 232, 0.4);
-  border-radius: 10px;
-  background: rgba(20, 35, 41, 0.9);
-  color: var(--text);
-  padding: 8px 14px;
   cursor: pointer;
-  transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+  transition:
+    background-color var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out),
+    transform 80ms var(--ease-out);
 }
 
-button:hover,
-button:focus-visible {
-  border-color: rgba(128, 217, 232, 0.8);
-  box-shadow: 0 0 0 2px rgba(128, 217, 232, 0.15);
-  outline: none;
+.btn-primary {
+  background: var(--color-water);
+  border-color: color-mix(in srgb, var(--color-water) 80%, black);
+  color: var(--color-bg);
 }
 
-button:active {
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-water-bright);
+}
+
+.btn-primary:active:not(:disabled) {
+  background: color-mix(in srgb, var(--color-water) 82%, black);
   transform: translateY(1px);
 }
 
+.btn-secondary {
+  background: transparent;
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--color-surface-elevated);
+  border-color: var(--color-text-muted);
+}
+
+.btn-secondary:active:not(:disabled) {
+  background: var(--color-bg);
+  transform: translateY(1px);
+}
+
+.advance-button:disabled {
+  background: var(--color-surface-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.advance-button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   6. Leitura de estado
+   Lâmpada de sinalização + texto de status, e a etapa atual como leitura
+   principal. Largura do status fixa para o layout não "pular" entre estados.
+   -------------------------------------------------------------------------- */
 .stage-display {
-  display: inline-flex;
+  display: flex;
+  flex: 1;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(128, 217, 232, 0.4);
-  background: rgba(9, 20, 25, 0.7);
-  color: var(--muted);
-  margin-left: auto;
+  gap: 14px;
+  min-width: 0;
+  min-height: 40px;
+  margin-left: 8px;
+  padding: 0 14px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
 }
 
-.stage-label {
-  font-size: 0.7rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+#sim-status {
+  --lamp: var(--color-steel);
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  min-width: 21ch;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
 }
 
+#sim-status::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lamp);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lamp) 20%, transparent);
+  transition: background-color var(--t-base) var(--ease-out), box-shadow var(--t-base) var(--ease-out);
+}
+
+#sim-status[data-state="running"] {
+  --lamp: var(--color-water-bright);
+  color: var(--color-text);
+}
+
+#sim-status[data-state="running"]::before {
+  animation: lamp-pulse 1.4s ease-in-out infinite;
+}
+
+#sim-status[data-state="waiting"] {
+  --lamp: var(--color-accent);
+  color: var(--color-text);
+}
+
+#sim-status[data-state="completed"] {
+  --lamp: var(--color-water);
+  color: var(--color-text);
+}
+
+#current-stage {
+  min-width: 0;
+  padding-left: 14px;
+  border-left: 1px solid var(--color-border);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes lamp-pulse {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   7. Folha de desenho
+   -------------------------------------------------------------------------- */
 .diagram-frame {
   position: relative;
   flex: 1;
-  border-radius: 12px;
-  overflow: visible;
-  background: rgba(6, 11, 14, 0.96);
-  border: 1px solid var(--panel-border);
-  box-shadow: inset 0 0 28px rgba(6, 16, 22, 0.8);
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-bg);
 }
 
 .diagram-viewport {
@@ -159,7 +338,14 @@ button:active {
   height: 100%;
   min-height: 0;
   overflow: auto;
-  background: #090d12;
+  background: var(--color-bg);
+  cursor: grab;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) var(--color-bg);
+}
+
+.diagram-viewport:active {
+  cursor: grabbing;
 }
 
 #eta-diagram {
@@ -169,150 +355,310 @@ button:active {
   min-width: 0;
   min-height: 0;
   transform-origin: center center;
-  transition: transform 150ms ease;
+  /* Curto de propósito: o pan aplica um transform a cada pointermove;
+     transição longa faz o arraste "correr atrás" do ponteiro. */
+  transition: transform 90ms var(--ease-out);
 }
 
 svg text {
-  font-family: "Segoe UI", Tahoma, sans-serif;
-  fill: var(--text);
+  font-family: var(--font-ui);
+  fill: var(--color-text);
 }
 
-svg .pipe {
-  fill: none;
-  stroke: rgba(128, 217, 232, 0.7);
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0.55;
-  transition: stroke 140ms ease, opacity 140ms ease, stroke-width 140ms ease;
-}
-
-svg .pipe.pipe-active {
-  stroke: var(--cyan);
-  stroke-width: 4;
-  opacity: 1;
-  filter: drop-shadow(0 0 10px rgba(115, 231, 255, 0.55));
-}
-
-svg .pipe.pipe-complete {
-  stroke: rgba(103, 190, 183, 0.72);
-  opacity: 0.82;
-}
-
-svg .pipe.pipe-chemical {
-  stroke: rgba(255, 209, 102, 0.95);
-  stroke-width: 3.5;
-  opacity: 1;
-}
-
-svg .zone-label {
-  fill: rgba(180, 214, 222, 0.72);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-}
-
+/* --------------------------------------------------------------------------
+   8. Zonas de processo (limites de área, como em P&ID)
+   -------------------------------------------------------------------------- */
 svg .process-zone {
   pointer-events: none;
 }
 
-svg .particle-coag {
-  fill: var(--coag);
+svg .zone {
+  fill: var(--color-surface);
+  fill-opacity: 0.6;
+  stroke: var(--color-border-strong);
+  stroke-width: 1;
+  stroke-dasharray: 10 6;
+  vector-effect: non-scaling-stroke;
+  rx: 6px;
 }
 
+svg .zone-label {
+  fill: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+/* --------------------------------------------------------------------------
+   9. Tubulações
+   Parada: aço. Ativa: água (ou âmbar/ferrugem conforme o fluido).
+   Concluída: mesma cor, apagada, para o caminho já percorrido continuar
+   legível sem competir com o que está acontecendo agora.
+   Cantos vivos e ponta reta: desenho técnico, não "fluxograma arredondado".
+   -------------------------------------------------------------------------- */
+svg .pipe {
+  fill: none;
+  stroke: var(--color-steel);
+  stroke-width: 2;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+  transition:
+    stroke var(--t-base) var(--ease-out),
+    stroke-width var(--t-base) var(--ease-out);
+}
+
+svg .pipe.pipe-complete {
+  stroke: var(--color-water-dim);
+  stroke-width: 2.25;
+}
+
+svg .pipe.pipe-active {
+  stroke: var(--color-water);
+  stroke-width: 3;
+}
+
+/* Fluido: químicos e rejeito têm identidade própria em todos os estados. */
+svg .pipe[data-flow="chemical"].pipe-complete {
+  stroke: var(--color-accent-dim);
+}
+
+svg .pipe[data-flow="chemical"].pipe-active,
+svg .pipe.pipe-chemical {
+  stroke: var(--color-accent);
+}
+
+svg .pipe[data-flow="reject"].pipe-complete {
+  stroke: var(--color-reject-dim);
+}
+
+svg .pipe[data-flow="reject"].pipe-active {
+  stroke: var(--color-reject);
+}
+
+/* Ponta de seta herda a cor do tubo (context-stroke); o valor sólido antes
+   dela é o fallback para navegadores que ainda não suportam. */
+svg marker path {
+  fill: var(--color-steel);
+  fill: context-stroke;
+}
+
+/* --------------------------------------------------------------------------
+   10. Equipamentos
+   Estados: parado → (ativo) → concluído. O preenchimento do ativo vem do
+   estado da água (data-water, definido pelo JS); o contorno diz "isto está
+   trabalhando agora".
+   -------------------------------------------------------------------------- */
 svg .node-shape {
-  stroke: rgba(128, 217, 232, 0.8);
+  fill: var(--color-surface-elevated);
+  stroke: var(--color-steel);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
-  transition: stroke 120ms ease, fill 120ms ease, filter 120ms ease;
+  rx: 4px;
+  transition:
+    fill var(--t-base) var(--ease-out),
+    stroke var(--t-base) var(--ease-out);
 }
+
+/* Forma por tipo (o JS expõe data-node-type) */
+svg [data-node-type="filter"] .node-shape {
+  rx: 2px;
+}
+
+svg [data-node-type="pump"] .node-shape {
+  rx: 29px; /* cápsula: todas as bombas têm 58 de altura */
+}
+
+/* Químicos: âmbar. "ro-label" é do tipo chemical no modelo de dados, mas
+   representa a entrada da osmose (água) – excluído aqui de propósito. */
+svg [data-node-type="chemical"]:not([data-node-id="ro-label"]) .node-shape {
+  fill: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface-elevated));
+  stroke: var(--color-accent-dim);
+}
+
+/* Concluído */
+svg .node-shape.node-complete {
+  fill: color-mix(in srgb, var(--color-water) 15%, var(--color-surface-elevated));
+  stroke: var(--color-water-dim);
+}
+
+svg [data-node-type="chemical"]:not([data-node-id="ro-label"]) .node-shape.node-complete {
+  fill: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface-elevated));
+  stroke: var(--color-accent-dim);
+}
+
+/* Ativo */
+svg .node-shape[data-water="raw"] { --tint: var(--state-raw); }
+svg .node-shape[data-water="coagulating"] { --tint: var(--state-coagulating); }
+svg .node-shape[data-water="flocculating"] { --tint: var(--state-flocculating); }
+svg .node-shape[data-water="clarified"] { --tint: var(--state-clarified); }
+svg .node-shape[data-water="filtered"] { --tint: var(--state-filtered); }
+svg .node-shape[data-water="treated"] { --tint: var(--state-treated); }
+svg .node-shape[data-water="ro_feed"] { --tint: var(--state-ro_feed); }
+svg .node-shape[data-water="ro_permeate"] { --tint: var(--state-ro_permeate); }
+svg .node-shape[data-water="disinfected"] { --tint: var(--state-disinfected); }
 
 svg .node-shape.node-active {
-  stroke: rgba(159, 238, 255, 1);
-  filter: drop-shadow(0 0 14px rgba(120, 228, 255, 0.45));
+  fill: var(--tint, var(--color-water-dim));
+  stroke: var(--color-water-bright);
+  stroke-width: 2.5;
+  animation: node-arrive 520ms var(--ease-out);
 }
 
-svg .node-shape.node-complete {
-  fill: rgba(52, 95, 104, 0.95);
+svg [data-node-type="chemical"]:not([data-node-id="ro-label"]) .node-shape.node-active {
+  fill: color-mix(in srgb, var(--color-accent) 26%, var(--color-surface-elevated));
+  stroke: var(--color-accent);
+}
+
+/* Entrada: o contorno "assenta" em vez de piscar. Roda uma vez, quando a
+   classe é aplicada; não reinicia nos quadros seguintes. */
+@keyframes node-arrive {
+  from {
+    stroke-width: 6;
+    stroke-opacity: 0.3;
+  }
+  to {
+    stroke-width: 2.5;
+    stroke-opacity: 1;
+  }
+}
+
+/* Interação */
+svg [data-node-id]:hover .node-shape:not(.node-active) {
+  stroke: var(--color-text-muted);
+}
+
+svg [data-node-id]:focus-visible {
+  outline: none;
+}
+
+svg [data-node-id]:focus-visible .node-shape {
+  stroke: var(--color-accent);
+  stroke-width: 3;
 }
 
 svg .node-highlight {
   fill: none;
-  stroke: rgba(128, 217, 232, 0.9);
-  stroke-width: 1.4;
-  stroke-dasharray: 6 6;
+  stroke: var(--color-text-muted);
+  stroke-width: 1.25;
+  stroke-dasharray: 5 4;
+  vector-effect: non-scaling-stroke;
   opacity: 0;
+  transition: opacity var(--t-fast) var(--ease-out);
 }
 
 svg .node-highlight.visible {
   opacity: 1;
 }
 
+/* Rótulos: parado = secundário; em uso ou concluído = texto pleno */
 svg .node-label {
-  fill: #edf8fb;
-  font-size: 13px;
+  fill: var(--color-label-idle);
+  font-size: 14px;
   font-weight: 600;
   text-anchor: middle;
   dominant-baseline: middle;
   pointer-events: none;
+  transition: fill var(--t-base) var(--ease-out);
 }
 
-svg .node-tag {
-  fill: rgba(15, 26, 30, 0.8);
-  stroke: rgba(128, 217, 232, 0.7);
-  stroke-width: 1.2;
+svg .node-shape.node-active ~ .node-label,
+svg .node-shape.node-complete ~ .node-label {
+  fill: var(--color-text);
 }
 
-svg .node-tag-text {
-  fill: #edf8fb;
-  font-size: 11px;
-  text-anchor: middle;
-  dominant-baseline: middle;
-  pointer-events: none;
+/* Círculos de origem são pequenos (r = 38): rótulo menor para caber */
+svg [data-node-type="source"] .node-label {
+  font-size: 12px;
 }
 
+/* --------------------------------------------------------------------------
+   11. Partículas: água (verde-água claro) e químico (âmbar)
+   O contorno na cor do fundo separa a partícula do tubo.
+   -------------------------------------------------------------------------- */
 svg .particle {
-  opacity: 0.95;
+  stroke: var(--color-bg);
+  stroke-width: 1;
   pointer-events: none;
 }
 
 svg .particle-water {
-  fill: var(--raw);
+  fill: var(--color-water-bright);
+  r: 3.5px;
 }
 
 svg .particle-coag {
-  fill: var(--coag);
+  fill: var(--color-accent);
+  r: 3px;
 }
 
-svg .particle-floc {
-  fill: var(--floc);
-}
-
-svg .particle-treated {
-  fill: var(--treated);
-}
-
-svg .particle-permeate {
-  fill: var(--permeate);
-}
-
-svg .particle-reject {
-  fill: var(--reject);
-}
-
-svg .zone {
-  fill: rgba(18, 33, 37, 0.4);
-  stroke: rgba(128, 217, 232, 0.12);
-  stroke-width: 1;
-}
-
+/* --------------------------------------------------------------------------
+   12. Responsividade
+   -------------------------------------------------------------------------- */
 @media (max-width: 980px) {
   .toolbar {
     flex-wrap: wrap;
   }
 
   .stage-display {
-    margin-left: 0;
     flex: 1 1 100%;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    padding: 12px 14px;
+  }
+
+  .workspace {
+    padding: 8px;
+  }
+
+  /* O filete só faz sentido com nome e unidade na mesma linha */
+  .title-site {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .toolbar .advance-button {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .stage-display {
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    padding: 8px 12px;
+  }
+
+  #sim-status {
+    min-width: 0;
+  }
+
+  #current-stage {
+    flex: 1 1 100%;
+    padding-left: 0;
+    border-left: 0;
+    white-space: normal;
+  }
+
+  /* 1840×1080 num celular fica ilegível (≈0,2×). Mantém o desenho em
+     escala legível e deixa o painel rolar internamente. */
+  #eta-diagram {
+    width: 1400px;
+    height: 822px;
+    max-width: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   13. Preferência por menos movimento
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
   }
 }
